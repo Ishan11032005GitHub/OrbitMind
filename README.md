@@ -1,4 +1,4 @@
-# Stealth Mode
+# OrbitMind
 
 AI-native relationship intelligence and safe email sequencing.
 
@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env` before connecting a database. The current UI uses realistic fixture data while the Gmail adapter and persistence layer are connected.
+Copy `.env.example` to `.env` before connecting a database. The demo workspace uses isolated fixture data, while authenticated Google accounts use their synchronized Gmail data.
 
 ## Architecture
 
