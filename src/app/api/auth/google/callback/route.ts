@@ -1,0 +1,37 @@
+import { NextRequest, NextResponse } from "next/server";
+import { decryptPrivateContext, encryptPrivateContext } from "@/domain/privacy";
+import { db } from "@/lib/db";
+import { env } from "@/lib/env";
+import { createUserSession, safeEqual } from "@/lib/auth/session";
+
+export const runtime = "nodejs";
+type OAuthState = { state: string; verifier: string; expiresAt: number };
+type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number; scope: string; token_type: string; id_token?: string };
+type GoogleProfile = { sub: string; email: string; email_verified: boolean; name?: string; picture?: string };
+
+const fail = (origin: string, reason: string) => NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(reason)}`, origin));
+
+export async function GET(request: NextRequest) {
+  const config = env(); const code = request.nextUrl.searchParams.get("code"); const returnedState = request.nextUrl.searchParams.get("state");
+  const packed = request.cookies.get("stealth_oauth")?.value;
+  if (!code || !returnedState || !packed) return fail(request.nextUrl.origin, "missing_oauth_state");
+  let oauth: OAuthState; try { oauth = decryptPrivateContext<OAuthState>(packed, config.AUTH_SECRET); } catch { return fail(request.nextUrl.origin, "invalid_oauth_state"); }
+  if (oauth.expiresAt < Date.now() || !safeEqual(oauth.state, returnedState)) return fail(request.nextUrl.origin, "expired_oauth_state");
+
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ code, client_id: config.GOOGLE_CLIENT_ID, client_secret: config.GOOGLE_CLIENT_SECRET, redirect_uri: config.GOOGLE_REDIRECT_URI, grant_type: "authorization_code", code_verifier: oauth.verifier }), cache: "no-store" });
+  if (!tokenResponse.ok) return fail(request.nextUrl.origin, "token_exchange_failed");
+  const tokens = await tokenResponse.json() as TokenResponse;
+  const profileResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { authorization: `Bearer ${tokens.access_token}` }, cache: "no-store" });
+  if (!profileResponse.ok) return fail(request.nextUrl.origin, "profile_fetch_failed");
+  const profile = await profileResponse.json() as GoogleProfile;
+  if (!profile.email_verified) return fail(request.nextUrl.origin, "unverified_google_email");
+
+  const email = profile.email.toLowerCase();
+  const user = await db.user.upsert({ where: { email }, update: { displayName: profile.name, pictureUrl: profile.picture }, create: { email, displayName: profile.name, pictureUrl: profile.picture } });
+  const existing = await db.mailbox.findUnique({ where: { userId_provider_email: { userId: user.id, provider: "gmail", email } } });
+  const accessTokenEncrypted = encryptPrivateContext({ token: tokens.access_token, scope: tokens.scope, tokenType: tokens.token_type }, config.TOKEN_ENCRYPTION_KEY);
+  const refreshTokenEncrypted = tokens.refresh_token ? encryptPrivateContext({ token: tokens.refresh_token }, config.TOKEN_ENCRYPTION_KEY) : existing?.refreshTokenEncrypted;
+  await db.mailbox.upsert({ where: { userId_provider_email: { userId: user.id, provider: "gmail", email } }, update: { accessTokenEncrypted, refreshTokenEncrypted, tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000), syncStatus: "pending" }, create: { userId: user.id, provider: "gmail", email, accessTokenEncrypted, refreshTokenEncrypted, tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000) } });
+  await createUserSession(user.id);
+  const response = NextResponse.redirect(new URL("/", request.nextUrl.origin)); response.cookies.set("stealth_oauth", "", { path: "/api/auth/google/callback", maxAge: 0 }); return response;
+}

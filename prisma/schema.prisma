@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+enum SequenceStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+enum EnrollmentStatus {
+  ACTIVE
+  PAUSED
+  REPLIED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+enum DeliveryStatus {
+  PENDING
+  CLAIMED
+  SENT
+  SKIPPED
+  FAILED
+  CANCELLED
+}
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  displayName String?
+  pictureUrl String?
+  contacts  Contact[]
+  companies Company[]
+  sequences Sequence[]
+  intelligenceRecords IntelligenceRecord[]
+  retentionPolicy RetentionPolicy?
+  sessions Session[]
+  mailboxes Mailbox[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+model Contact {
+  id                  String       @id @default(cuid())
+  userId              String
+  primaryEmail        String
+  displayName         String
+  category            String
+  companyId           String?
+  strengthScore       Int          @default(0)
+  strengthLabel       String       @default("New")
+  strengthExplanation Json?
+  sentCount           Int          @default(0)
+  receivedCount       Int          @default(0)
+  threadCount         Int          @default(0)
+  replyRate           Float?
+  medianReplyMinutes  Int?
+  lastSentAt          DateTime?
+  lastReceivedAt      DateTime?
+  lastInteractionAt   DateTime?
+  aiSummary           String?
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company             Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  enrollments         Enrollment[]
+  aliases             ContactAlias[]
+  commitments         Commitment[]
+  intelligenceRecords IntelligenceRecord[]
+  messageParticipants MessageParticipant[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  @@unique([userId, primaryEmail])
+  @@index([userId, lastInteractionAt])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([userId, expiresAt])
+}
+
+model Mailbox {
+  id                    String       @id @default(cuid())
+  userId                String
+  provider              String       @default("gmail")
+  email                 String
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  historyId             String?
+  watchExpiresAt        DateTime?
+  syncStatus            String       @default("pending")
+  lastSyncedAt          DateTime?
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads               MailThread[]
+  messages              MailMessage[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  @@unique([userId, provider, email])
+  @@index([syncStatus, lastSyncedAt])
+}
+
+model MailThread {
+  id            String        @id @default(cuid())
+  mailboxId     String
+  providerId    String
+  subject       String?
+  lastMessageAt DateTime
+  mailbox       Mailbox       @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  messages      MailMessage[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  @@unique([mailboxId, providerId])
+  @@index([mailboxId, lastMessageAt])
+}
+
+model MailMessage {
+  id                 String               @id @default(cuid())
+  mailboxId          String
+  threadId           String
+  providerId         String
+  internetMessageId  String?
+  direction          String
+  subject            String?
+  snippet            String?
+  bodyEncrypted      String?
+  bodyFingerprint    String?
+  occurredAt         DateTime
+  category           String?
+  categoryConfidence Float?
+  priority           String?
+  mailbox            Mailbox              @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  thread             MailThread           @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  participants       MessageParticipant[]
+  createdAt          DateTime             @default(now())
+  @@unique([mailboxId, providerId])
+  @@index([threadId, occurredAt])
+  @@index([mailboxId, occurredAt])
+}
+
+model MessageParticipant {
+  id        String      @id @default(cuid())
+  messageId String
+  contactId String?
+  email     String
+  name      String?
+  role      String
+  message   MailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  contact   Contact?    @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  @@unique([messageId, email, role])
+  @@index([email])
+}
+model Company {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  domain     String?
+  confidence Float?
+  source     String?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts   Contact[]
+  @@unique([userId, domain])
+}
+model Sequence {
+  id               String         @id @default(cuid())
+  userId           String
+  name             String
+  status           SequenceStatus @default(DRAFT)
+  timezone         String
+  windowStart      String         @default("09:00")
+  windowEnd        String         @default("17:00")
+  businessDaysOnly Boolean        @default(true)
+  stopOnReply      Boolean        @default(true)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps            SequenceStep[]
+  enrollments      Enrollment[]
+  learning         SequenceLearning?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+model SequenceStep {
+  id           String     @id @default(cuid())
+  sequenceId   String
+  position     Int
+  delayMinutes Int        @default(0)
+  subject      String?
+  body         String
+  sameThread   Boolean    @default(true)
+  sequence     Sequence   @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  deliveries   Delivery[]
+  @@unique([sequenceId, position])
+}
+model Enrollment {
+  id          String           @id @default(cuid())
+  sequenceId  String
+  contactId   String
+  status      EnrollmentStatus @default(ACTIVE)
+  currentStep Int              @default(0)
+  nextRunAt   DateTime?
+  repliedAt   DateTime?
+  sequence    Sequence         @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contact     Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  deliveries Delivery[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  @@unique([sequenceId, contactId])
+  @@index([status, nextRunAt])
+}
+model Delivery {
+  id             String         @id @default(cuid())
+  enrollmentId   String
+  stepId         String
+  idempotencyKey String         @unique
+  status         DeliveryStatus @default(PENDING)
+  scheduledFor   DateTime
+  sentAt         DateTime?
+  providerId     String?
+  error          String?
+  attemptCount   Int            @default(0)
+  enrollment     Enrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  step           SequenceStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  @@index([status, scheduledFor])
+}
+
+model ContactAlias {
+  id         String   @id @default(cuid())
+  contactId  String
+  email      String
+  source     String
+  confidence Float
+  verifiedAt DateTime?
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  @@unique([contactId, email])
+  @@index([email])
+}
+
+model Commitment {
+  id              String   @id @default(cuid())
+  contactId       String
+  sourceMessageId String
+  owner           String
+  text            String
+  dueAt           DateTime?
+  status          String   @default("open")
+  confidence      Float
+  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([contactId, status, dueAt])
+}
+
+model RelationshipEdge {
+  id            String   @id @default(cuid())
+  userId        String
+  fromContactId String
+  toContactId   String
+  strength      Int
+  sharedThreads Int      @default(0)
+  evidence      Json?
+  lastSeenAt    DateTime
+  updatedAt     DateTime @updatedAt
+  @@unique([userId, fromContactId, toContactId])
+  @@index([userId, toContactId])
+}
+
+model IntelligenceRecord {
+  id             String   @id @default(cuid())
+  userId         String
+  contactId      String?
+  kind           String
+  version        String
+  confidence     Float?
+  evidence       Json?
+  encryptedValue String?
+  expiresAt      DateTime?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact        Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  @@index([userId, kind, createdAt])
+  @@index([contactId, kind])
+}
+
+model RetentionPolicy {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  rawBodyDays          Int     @default(7)
+  retainAttachments    Boolean @default(false)
+  allowExternalAI      Boolean @default(false)
+  maxModelContextChars Int     @default(12000)
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SequenceLearning {
+  id                   String   @id @default(cuid())
+  sequenceId           String   @unique
+  sampleSize           Int      @default(0)
+  preferredHour        Int?
+  stepReplyRates       Json?
+  optimizedDelaysHours Json?
+  lastOptimizedAt      DateTime?
+  sequence             Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+}

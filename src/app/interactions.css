@@ -1,0 +1,66 @@
+button,
+[role="button"],
+a[href],
+summary,
+select,
+label[for],
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Gmail access is granted during Google login and synchronized automatically. */
+.topbar > a.connect,
+.topbar > button.connect:last-of-type {
+  display: none;
+}
+
+.personRow,
+.sequenceCard,
+.companyCard,
+.aiBrief button,
+.rowGo {
+  cursor: pointer;
+}
+
+.overlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 3, 9, 0.76);
+  backdrop-filter: blur(12px);
+}
+
+.modal {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 30px;
+  border: 1px solid rgba(66, 245, 233, 0.2);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #121725, #080b13);
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.8), 0 0 50px rgba(66, 245, 233, 0.08);
+}
+
+.modal > small { color: #42f5e9; font-size: 8px; letter-spacing: 0.16em; }
+.modal h2 { margin: 9px 0 14px; font: 700 24px var(--font-display); }
+.modal p { color: #8a94a7; line-height: 1.7; font-size: 12px; }
+.modal .close { position: absolute; right: 14px; top: 14px; width: 32px; height: 32px; border: 1px solid #ffffff13; border-radius: 9px; background: #ffffff06; color: #aab3c5; }
+.modal .neonButton { margin-top: 18px; }
+
+.identityButton::after {
+  content: "Logout";
+  color: #8b95a8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.identityButton:hover::after { color: #42f5e9; }
