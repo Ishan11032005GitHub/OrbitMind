@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Link2,
@@ -23,6 +23,7 @@ export default function EmailComposer({
   const [to, setTo] = useState<string[]>([]),
     [cc, setCc] = useState<string[]>([]),
     [bcc, setBcc] = useState<string[]>([]);
+  const composerRef = useRef<HTMLElement>(null);
   const [subject, setSubject] = useState(""),
     [body, setBody] = useState(""),
     [threadId, setThreadId] = useState(""),
@@ -30,6 +31,10 @@ export default function EmailComposer({
     [sending, setSending] = useState(false),
     [aiLoading, setAiLoading] = useState(false),
     [error, setError] = useState("");
+  useEffect(() => {
+    composerRef.current?.scrollIntoView({ block: "start" });
+    composerRef.current?.focus({ preventScroll: true });
+  }, []);
   async function generateDraft() {
     if (!body.trim() && !subject.trim())
       return setError("Describe what you want the email to say first.");
@@ -95,7 +100,7 @@ export default function EmailComposer({
       aria-modal="true"
       aria-label="Compose email"
     >
-      <section className={styles.composer}>
+      <section id="compose-email" ref={composerRef} tabIndex={-1} className={styles.composer}>
         <header>
           <div>
             <span>
@@ -129,7 +134,6 @@ export default function EmailComposer({
             value={body}
             onChange={(event) => setBody(event.target.value)}
             placeholder="Write your email…"
-            autoFocus
           />
         </label>
         {showThread && (
