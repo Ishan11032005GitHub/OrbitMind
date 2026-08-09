@@ -5,8 +5,9 @@ import { seedInboxIqDemo } from "@/lib/demo/seed";
 import { DEMO_ACCOUNT } from "@/data/demo-workspace";
 
 export async function POST(request: Request) {
+  const publicOrigin = process.env.APP_URL ?? new URL(request.url).origin;
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+  if (origin && origin !== new URL(publicOrigin).origin) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
   try {
     const user = await db.user.upsert({
       where: { email: DEMO_ACCOUNT.internalEmail },
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
     });
     await seedInboxIqDemo(user.id);
     const session = await persistUserSession(user.id);
-    const response = NextResponse.redirect(new URL("/", request.url), 303);
+    const response = NextResponse.redirect(new URL("/", publicOrigin), 303);
     response.cookies.set(SESSION_COOKIE, session.raw, {
       httpOnly: true,
       secure: true,
@@ -26,6 +27,6 @@ export async function POST(request: Request) {
     return response;
   } catch (cause) {
     console.error("Demo session database setup failed", cause instanceof Error ? cause.message : "Unknown database error");
-    return NextResponse.redirect(new URL("/login?demoError=1", request.url), 303);
+    return NextResponse.redirect(new URL("/login?demoError=1", publicOrigin), 303);
   }
 }
