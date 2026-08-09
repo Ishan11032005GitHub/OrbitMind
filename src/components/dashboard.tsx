@@ -462,8 +462,35 @@ export default function Dashboard({
               setModal({
                 title: "Relationship pulse",
                 body: isDemo
-                  ? "100 InboxIQ demo conversations are mapped across two identities. The personal Gmail relationship is currently strongest."
-                  : "Maya and Arjun are accelerating. Dev is drifting after 26 days without contact.",
+                  ? "Your demo network contains 100 classified conversations split evenly across two identities. Personal Gmail leads at 86/100 with strong recent momentum. IIIT Guwahati is growing at 78/100, but its longer response gap makes it the next relationship to review. Thirty-five high-priority messages need attention. Recommended move: follow up on product direction first, then close the sprint-planning loop."
+                  : strongest
+                    ? `${strongest.name} is currently your strongest relationship at ${strongest.score}/100. ${attentionPeople.length ? `${attentionPeople.length} relationships need attention because their interaction momentum is declining.` : "No relationships are currently below the attention threshold."}`
+                    : "No relationship activity is available yet. Synchronize Gmail to generate your pulse.",
+                kind: "detail",
+                fields: [
+                  { label: "PEOPLE MAPPED", value: String(isDemo ? 2 : metrics.people) },
+                  { label: "CONVERSATIONS", value: String(isDemo ? 100 : metrics.conversations) },
+                  { label: "STRONG RELATIONSHIPS", value: String(isDemo ? 2 : metrics.strong) },
+                  { label: "NEEDS ATTENTION", value: String(isDemo ? 35 : metrics.attention) },
+                  { label: "STRONGEST CONNECTION", value: strongest ? `${strongest.name} - ${strongest.score}/100` : "Not available" },
+                  { label: "RECOMMENDED ACTION", value: isDemo ? "Follow up on product direction, then sprint planning" : attentionPeople[0] ? `Reconnect with ${attentionPeople[0].name}` : "Maintain current relationship cadence" },
+                ],
+                graph: {
+                  center: "Relationship pulse",
+                  nodes: isDemo
+                    ? [
+                        { label: "Personal Gmail", meta: "86/100 - strong", tone: "cyan" },
+                        { label: "IIIT Guwahati", meta: "78/100 - growing", tone: "violet" },
+                        { label: "35 priority", meta: "Needs attention", tone: "pink" },
+                        { label: "100 signals", meta: "50 per identity", tone: "amber" },
+                      ]
+                    : [
+                        { label: strongest?.name ?? "No contact", meta: strongest ? `${strongest.score}/100 - strongest` : "Sync required", tone: "cyan" },
+                        { label: `${metrics.strong} strong`, meta: "Healthy momentum", tone: "violet" },
+                        { label: `${metrics.attention} attention`, meta: "Declining momentum", tone: "pink" },
+                        { label: `${metrics.conversations} signals`, meta: `${metrics.people} people`, tone: "amber" },
+                      ],
+                },
               });
             }}
           >

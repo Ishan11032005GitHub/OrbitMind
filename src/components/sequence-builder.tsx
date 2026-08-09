@@ -386,21 +386,40 @@ export default function SequenceBuilder({
                       rows={6}
                     />
                   </label>
-                  <label className={styles.schedule}>
+                  <div className={styles.schedule}>
                     <CalendarClock />
-                    <span>
-                      <small>SEND DATE & TIME</small>
-                      <input
-                        type="datetime-local"
-                        value={step.scheduledAt}
-                        onChange={(event) =>
-                          updateStep(step.id, {
-                            scheduledAt: event.target.value,
-                          })
-                        }
-                      />
-                    </span>
-                  </label>
+                    <div className={styles.scheduleCopy}>
+                      <small>SCHEDULED SEND</small>
+                      <div className={styles.scheduleFields}>
+                        <label>
+                          <span>DATE</span>
+                          <input
+                            type="date"
+                            value={step.scheduledAt.slice(0, 10)}
+                            onChange={(event) =>
+                              updateStep(step.id, {
+                                scheduledAt: `${event.target.value}T${step.scheduledAt.slice(11, 16) || "09:00"}`,
+                              })
+                            }
+                            required
+                          />
+                        </label>
+                        <label>
+                          <span>TIME</span>
+                          <input
+                            type="time"
+                            value={step.scheduledAt.slice(11, 16)}
+                            onChange={(event) =>
+                              updateStep(step.id, {
+                                scheduledAt: `${step.scheduledAt.slice(0, 10) || localDateTime(1).slice(0, 10)}T${event.target.value}`,
+                              })
+                            }
+                            required
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </article>
             ))}
