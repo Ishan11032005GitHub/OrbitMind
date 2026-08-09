@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { DEMO_ACCOUNT } from "@/data/demo-workspace";
+import { classifyEmail } from "@/domain/email-classification";
 
 const demoSubjects = [
   ["1:1 this week?", "Can we find thirty minutes to align on the product direction and next milestones?"],
@@ -39,7 +40,8 @@ export async function GET() {
   const storedMessages = messages.map((message) => {
     const preferredRole = message.direction === "received" ? "from" : "to";
     const participant = message.participants.find((item) => item.role === preferredRole) ?? message.participants[0];
-    return { id: message.id, subject: message.subject || "(no subject)", snippet: message.snippet || "No preview available", sender: participant?.name || participant?.email || "Unknown sender", email: participant?.email || "", direction: message.direction, occurredAt: message.occurredAt, category: message.category || "Unclassified", priority: message.priority || "Normal" };
+    const classification = classifyEmail(message.subject ?? "", message.snippet ?? "");
+    return { id: message.id, subject: message.subject || "(no subject)", snippet: message.snippet || "No preview available", sender: participant?.name || participant?.email || "Unknown sender", email: participant?.email || "", direction: message.direction, occurredAt: message.occurredAt, category: message.category || classification.category, priority: message.priority || classification.priority };
   });
   if (user.email === DEMO_ACCOUNT.internalEmail) {
     const liveMailbox = await db.mailbox.findFirst({

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { gmailAccessToken } from "@/lib/gmail";
 import { stopSequencesForReply } from "@/lib/sequence-worker";
+import { classifyEmail } from "@/domain/email-classification";
 
 type Header = { name: string; value: string };
 type Part = { mimeType?: string; body?: { data?: string }; parts?: Part[] };
@@ -259,6 +260,7 @@ export async function syncGmailBatch(
           : "received";
       const subject = header(message, "Subject") || "(no subject)";
       const body = textBody(message.payload) || message.snippet || "";
+      const classification = classifyEmail(subject, message.snippet || body);
       const thread = await db.mailThread.upsert({
         where: {
           mailboxId_providerId: {
@@ -298,6 +300,10 @@ export async function syncGmailBatch(
             : undefined,
           bodyFingerprint: body ? fingerprint(body, userId) : undefined,
           occurredAt,
+          category: classification.category,
+          priority: message.labelIds?.includes("IMPORTANT") || message.labelIds?.includes("STARRED")
+            ? "High"
+            : classification.priority,
         },
       });
       const roles = [

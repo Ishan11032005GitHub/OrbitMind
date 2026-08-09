@@ -46,14 +46,17 @@ export default function InboxPanel({ onCompose }: { onCompose: () => void }) {
         });
     void loadInbox();
     const timer = window.setInterval(loadInbox, 30_000);
+    const refreshAfterMailboxUpdate = () => void loadInbox();
     const refreshVisibleInbox = () => {
       if (document.visibilityState === "visible") void loadInbox();
     };
     document.addEventListener("visibilitychange", refreshVisibleInbox);
+    window.addEventListener("orbitmind:mailbox-updated", refreshAfterMailboxUpdate);
     return () => {
       active = false;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshVisibleInbox);
+      window.removeEventListener("orbitmind:mailbox-updated", refreshAfterMailboxUpdate);
     };
   }, []);
   const visible = useMemo(

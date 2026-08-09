@@ -51,6 +51,9 @@ export default function IntelligencePanel({ isDemo }: { isDemo: boolean }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    const refresh = () => void load();
+    window.addEventListener("orbitmind:mailbox-updated", refresh);
+    return () => window.removeEventListener("orbitmind:mailbox-updated", refresh);
   }, []);
 
   const search = () => void load(query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "");

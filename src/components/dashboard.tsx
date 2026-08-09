@@ -127,7 +127,11 @@ type Modal = {
   fields?: DetailField[];
   graph?: { center: string; nodes: GraphNode[] };
 } | null;
-type Person = (typeof seedPeople)[number];
+type Person = (typeof seedPeople)[number] & {
+  sent?: number;
+  received?: number;
+  scoreFactors?: { name: string; points: number; detail: string }[];
+};
 export default function Dashboard({
   user,
   initialPeople = [],
@@ -152,7 +156,7 @@ export default function Dashboard({
   const [reclassifying, setReclassifying] = useState(false);
   const [toast, setToast] = useState("");
   const [notifications, setNotifications] = useState(false);
-  const [people, setPeople] = useState(
+  const [people, setPeople] = useState<Person[]>(
     initialPeople.length ? initialPeople : isDemo ? seedPeople : [],
   );
   const [sequences, setSequences] = useState<CreatedSequence[]>(
@@ -162,9 +166,15 @@ export default function Dashboard({
   );
   const [metrics, setMetrics] = useState({
     people: initialPeople.length,
+    messages: 0,
     conversations: 0,
+    threads: 0,
+    received: 0,
+    sent: 0,
     strong: initialPeople.filter((person) => person.score >= 75).length,
     attention: initialPeople.filter((person) => person.score < 45).length,
+    highPriority: 0,
+    categories: {} as Record<string, number>,
   });
   const visible = useMemo(
     () =>
@@ -246,15 +256,53 @@ export default function Dashboard({
         .catch(() => undefined);
     };
     const timer = window.setInterval(refreshWorkspace, 30_000);
+    const refreshAfterMailboxUpdate = () => refreshWorkspace();
     const refreshVisibleWorkspace = () => {
       if (document.visibilityState === "visible") refreshWorkspace();
     };
     document.addEventListener("visibilitychange", refreshVisibleWorkspace);
+    window.addEventListener("orbitmind:mailbox-updated", refreshAfterMailboxUpdate);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshVisibleWorkspace);
+      window.removeEventListener("orbitmind:mailbox-updated", refreshAfterMailboxUpdate);
     };
   }, [isDemo]);
+  useEffect(() => {
+    if (!liveDemo) return;
+    let active = true;
+    let syncing = false;
+    const syncNewMail = async () => {
+      if (!active || syncing || document.visibilityState !== "visible") return;
+      syncing = true;
+      try {
+        const response = await fetch("/api/gmail/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchSize: 25 }),
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.imported > 0)
+            window.dispatchEvent(new Event("orbitmind:mailbox-updated"));
+        }
+      } catch {
+        // Keep the live loop quiet during temporary network interruptions.
+      } finally {
+        syncing = false;
+      }
+    };
+    const first = window.setTimeout(syncNewMail, 2_000);
+    const timer = window.setInterval(syncNewMail, 8_000);
+    const syncWhenVisible = () => void syncNewMail();
+    document.addEventListener("visibilitychange", syncWhenVisible);
+    return () => {
+      active = false;
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+    };
+  }, [liveDemo]);
   async function syncMailbox() {
     setSyncing(true);
     try {
@@ -279,6 +327,7 @@ export default function Dashboard({
       setPeople(workspace.people ?? []);
       setSequences(workspace.sequences ?? []);
       if (workspace.metrics) setMetrics(workspace.metrics);
+      window.dispatchEvent(new Event("orbitmind:mailbox-updated"));
       notify(`Gmail synced: ${imported} new messages`);
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Gmail sync failed");
@@ -399,6 +448,8 @@ export default function Dashboard({
               { label: "COMPANY", value: relationship.company },
               { label: "RELATIONSHIP HEALTH", value: `${relationship.score}/100 · ${relationship.strength}` },
               { label: "INTERACTIONS", value: `${relationship.messages} messages across ${relationship.threads} threads` },
+              { label: "MESSAGE DIRECTION", value: `${relationship.sent ?? 0} sent · ${relationship.received ?? 0} received` },
+              { label: "SCORE MEANING", value: "Recency (35) + frequency (25) + reciprocity (18) + continuity (12) + responsiveness (10), minus automated-mail penalties" },
               { label: "LAST SIGNAL", value: relationship.time },
               { label: "DIRECTION", value: relationship.direction },
             ]
@@ -715,22 +766,26 @@ export default function Dashboard({
           </section>
           <section className="metrics">
             {([
-                  ["PEOPLE MAPPED", String(metrics.people), "From your Gmail"],
+                  ["PEOPLE MAPPED", String(metrics.people), "Unique external email addresses"],
                   [
                     "STRONG ORBITS",
                     String(metrics.strong),
-                    "Score 75 or higher",
+                    "Email-derived score ≥75",
                   ],
                   [
-                    "CONVERSATIONS",
-                    String(metrics.conversations),
-                    "Imported messages",
+                    "EMAIL MESSAGES",
+                    String(metrics.messages),
+                    "Individual imported Gmail messages",
                   ],
                   [
                     "NEEDS ATTENTION",
                     String(metrics.attention),
-                    "Relationship score below 45",
+                    "Email-derived score <45",
                   ],
+                  ["GMAIL THREADS", String(metrics.threads), "Unique Gmail conversation threads"],
+                  ["RECEIVED", String(metrics.received), "Messages sent to this mailbox"],
+                  ["SENT", String(metrics.sent), "Messages sent by this mailbox"],
+                  ["HIGH PRIORITY", String(metrics.highPriority), "Important, starred, urgent, or security mail"],
                 ]).map((x) => (
               <article className="glass" key={x[0]}>
                 <span>{x[0]}</span>
@@ -796,7 +851,10 @@ export default function Dashboard({
                         { label: "LAST INTERACTION", value: p.time },
                         { label: "DIRECTION", value: p.direction },
                         { label: "MESSAGE SIGNALS", value: String(p.messages) },
+                        { label: "SENT / RECEIVED", value: `${p.sent ?? 0} / ${p.received ?? 0}` },
                         { label: "THREADS", value: String(p.threads) },
+                        { label: "SCORE FORMULA", value: "Recency 35 + frequency 25 + reciprocity 18 + continuity 12 + responsiveness 10 − automation penalty" },
+                        ...(p.scoreFactors?.map((factor) => ({ label: factor.name.toUpperCase(), value: `${factor.points >= 0 ? "+" : ""}${factor.points} · ${factor.detail}` })) ?? []),
                       ],
                       graph: {
                         center: p.name,
@@ -1042,6 +1100,7 @@ export default function Dashboard({
           onClose={() => setComposerOpen(false)}
           onSent={(message) => {
             setComposerOpen(false);
+            window.dispatchEvent(new Event("orbitmind:mailbox-updated"));
             notify(message);
           }}
         />
