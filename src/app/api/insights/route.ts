@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+  if (origin && origin !== new URL(env().APP_URL).origin) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid intelligence action" }, { status: 400 });
   const rate = rateLimit(`insights:${user.id}`, 12, 60_000);
