@@ -2,14 +2,19 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
-const SESSION_COOKIE = "stealth_session";
+export const SESSION_COOKIE = "stealth_session";
 const SESSION_DAYS = 30;
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 
-export async function createUserSession(userId: string) {
+export async function persistUserSession(userId: string) {
   const raw = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
   await db.session.create({ data: { tokenHash: digest(raw), userId, expiresAt } });
+  return { raw, expiresAt };
+}
+
+export async function createUserSession(userId: string) {
+  const { raw, expiresAt } = await persistUserSession(userId);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, raw, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: expiresAt });
 }
