@@ -195,7 +195,7 @@ export default function Dashboard({
       if (!active || syncing || document.visibilityState !== "visible") return;
       syncing = true;
       try {
-        let imported = 0;
+        let syncSucceeded = false;
         for (let batch = 0; batch < 5 && active; batch++) {
           const response = await fetch("/api/gmail/sync", {
             method: "POST",
@@ -203,12 +203,12 @@ export default function Dashboard({
             body: JSON.stringify({ batchSize: 50, pageToken }),
           });
           if (!response.ok) break;
+          syncSucceeded = true;
           const result = await response.json();
-          imported += result.imported ?? 0;
           pageToken = result.nextPageToken ?? undefined;
           if (!pageToken) break;
         }
-        if (imported > 0)
+        if (syncSucceeded)
           window.dispatchEvent(new Event("orbitmind:mailbox-updated"));
       } catch {
         // Keep the live loop quiet during temporary network interruptions.
