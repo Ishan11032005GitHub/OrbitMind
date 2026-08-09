@@ -35,11 +35,19 @@ const demoMessages = Array.from({ length: 100 }, (_, index) => {
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.email === DEMO_ACCOUNT.internalEmail) return NextResponse.json({ messages: demoMessages, demo: true });
   const messages = await db.mailMessage.findMany({ where: { mailbox: { userId: user.id } }, include: { participants: true }, orderBy: { occurredAt: "desc" } });
-  return NextResponse.json({ messages: messages.map((message) => {
+  const storedMessages = messages.map((message) => {
     const preferredRole = message.direction === "received" ? "from" : "to";
     const participant = message.participants.find((item) => item.role === preferredRole) ?? message.participants[0];
     return { id: message.id, subject: message.subject || "(no subject)", snippet: message.snippet || "No preview available", sender: participant?.name || participant?.email || "Unknown sender", email: participant?.email || "", direction: message.direction, occurredAt: message.occurredAt, category: message.category || "Unclassified", priority: message.priority || "Normal" };
-  }) });
+  });
+  if (user.email === DEMO_ACCOUNT.internalEmail) {
+    const liveMailbox = await db.mailbox.findFirst({
+      where: { userId: user.id, provider: "gmail", refreshTokenEncrypted: { not: null } },
+      select: { id: true },
+    });
+    if (liveMailbox) return NextResponse.json({ messages: storedMessages, demo: true, live: true });
+    return NextResponse.json({ messages: demoMessages, demo: true, live: false });
+  }
+  return NextResponse.json({ messages: storedMessages });
 }

@@ -3,9 +3,10 @@ import { decryptPrivateContext, encryptPrivateContext } from "@/domain/privacy";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { createUserSession, safeEqual } from "@/lib/auth/session";
+import { DEMO_ACCOUNT } from "@/data/demo-workspace";
 
 export const runtime = "nodejs";
-type OAuthState = { state: string; verifier: string; expiresAt: number };
+type OAuthState = { state: string; verifier: string; mode?: "user" | "demo"; expiresAt: number };
 type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number; scope: string; token_type: string; id_token?: string };
 type GoogleProfile = { sub: string; email: string; email_verified: boolean; name?: string; picture?: string };
 
@@ -28,7 +29,19 @@ export async function GET(request: NextRequest) {
   if (!profile.email_verified) return fail(publicOrigin, "unverified_google_email");
 
   const email = profile.email.toLowerCase();
-  const user = await db.user.upsert({ where: { email }, update: { displayName: profile.name, pictureUrl: profile.picture }, create: { email, displayName: profile.name, pictureUrl: profile.picture } });
+  const expectedDemoEmail = (config.DEMO_GMAIL_USER ?? DEMO_ACCOUNT.displayEmail).toLowerCase();
+  if (oauth.mode === "demo" && email !== expectedDemoEmail) return fail(publicOrigin, "wrong_demo_google_account");
+  const userEmail = oauth.mode === "demo" ? DEMO_ACCOUNT.internalEmail : email;
+  const displayName = oauth.mode === "demo" ? DEMO_ACCOUNT.displayName : profile.name;
+  const user = await db.user.upsert({ where: { email: userEmail }, update: { displayName, pictureUrl: profile.picture }, create: { email: userEmail, displayName, pictureUrl: profile.picture } });
+  if (oauth.mode === "demo") {
+    await db.$transaction([
+      db.sequence.deleteMany({ where: { userId: user.id, name: { in: ["Meeting follow-ups", "High-priority work", "Re-engage quiet threads"] } } }),
+      db.contact.deleteMany({ where: { userId: user.id, primaryEmail: { in: ["ishan11032005@gmail.com", "ishan.tiwari23b@iiitg.ac.in"] } } }),
+      db.company.deleteMany({ where: { userId: user.id, source: "inboxiq-v2-demo" } }),
+      db.mailbox.deleteMany({ where: { userId: user.id, provider: "demo" } }),
+    ]);
+  }
   const existing = await db.mailbox.findUnique({ where: { userId_provider_email: { userId: user.id, provider: "gmail", email } } });
   const accessTokenEncrypted = encryptPrivateContext({ token: tokens.access_token, scope: tokens.scope, tokenType: tokens.token_type }, config.TOKEN_ENCRYPTION_KEY);
   const refreshTokenEncrypted = tokens.refresh_token ? encryptPrivateContext({ token: tokens.refresh_token }, config.TOKEN_ENCRYPTION_KEY) : existing?.refreshTokenEncrypted;

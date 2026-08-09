@@ -17,6 +17,8 @@ const serverSchema = z.object({
   ENABLE_EXTERNAL_AI: z.enum(["true", "false"]).default("false"),
   ENABLE_SEQUENCE_SENDING: z.enum(["true", "false"]).default("false"),
   CRON_SECRET: z.string().min(24).optional(),
+  DEMO_GMAIL_USER: z.string().email().optional(),
+  DEMO_GOOGLE_CREDENTIALS: z.string().min(20).optional(),
 });
 
 let cached: z.infer<typeof serverSchema> | undefined;

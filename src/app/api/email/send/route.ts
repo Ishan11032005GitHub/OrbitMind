@@ -33,8 +33,17 @@ export async function POST(request: Request) {
       { status: 429, headers: { "Retry-After": String(rate.retryAfter) } },
     );
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+  if (origin) {
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+    const allowedOrigins = new Set([
+      new URL(request.url).origin,
+      new URL(env().APP_URL).origin,
+      ...(forwardedHost ? [`${forwardedProto}://${forwardedHost}`] : []),
+    ]);
+    if (!allowedOrigins.has(origin))
+      return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+  }
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json(
@@ -55,12 +64,6 @@ export async function POST(request: Request) {
     cc = dedupe(input.cc),
     bcc = dedupe(input.bcc);
 
-  if (user.email === "demo@stealth.local")
-    return NextResponse.json({
-      ok: true,
-      simulated: true,
-      message: `Demo send simulated for ${to.length + cc.length + bcc.length} recipients.`,
-    });
   try {
     const { mailbox, token } = await gmailAccessToken(user.id);
     const raw = buildRawEmail({

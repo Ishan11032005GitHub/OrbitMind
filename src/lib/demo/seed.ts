@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { configureLiveDemoMailbox } from "@/lib/demo/gmail";
 
 const DEMO_EMAIL = "demoinboxiq@gmail.com";
 const senders = [
@@ -26,6 +27,12 @@ const senders = [
 
 export async function seedInboxIqDemo(userId: string) {
   const now = Date.now();
+  await configureLiveDemoMailbox(userId);
+  const liveMailbox = await db.mailbox.findFirst({
+    where: { userId, provider: "gmail", refreshTokenEncrypted: { not: null } },
+    select: { id: true },
+  });
+  if (liveMailbox) return;
   await db.mailbox.upsert({
     where: {
       userId_provider_email: { userId, provider: "demo", email: DEMO_EMAIL },

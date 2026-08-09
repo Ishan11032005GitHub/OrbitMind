@@ -140,6 +140,8 @@ export default function Dashboard({
   const router = useRouter();
   const isDemo = user.email === DEMO_ACCOUNT.internalEmail;
   const accountEmail = isDemo ? DEMO_ACCOUNT.displayEmail : user.email;
+  const [liveDemo, setLiveDemo] = useState(false);
+  const fixtureDemo = isDemo && !liveDemo;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [activeNav, setActiveNav] = useState("people");
@@ -214,15 +216,15 @@ export default function Dashboard({
     setTimeout(() => setToast(""), 2400);
   };
   useEffect(() => {
-    if (isDemo) return;
     fetch("/api/workspace")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data) => {
         setPeople(data.people ?? []);
         setSequences(data.sequences ?? []);
         if (data.metrics) setMetrics(data.metrics);
+        if (isDemo) setLiveDemo(data.mailbox?.provider === "gmail");
         const syncKey = `orbitmind-auto-sync:${user.email}`;
-        if (!sessionStorage.getItem(syncKey)) {
+        if (data.mailbox?.provider === "gmail" && !sessionStorage.getItem(syncKey)) {
           sessionStorage.setItem(syncKey, "started");
           void syncMailbox();
         }
@@ -231,6 +233,28 @@ export default function Dashboard({
     // The initial load intentionally owns the one-time mailbox sync trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDemo, user.email]);
+  useEffect(() => {
+    const refreshWorkspace = () => {
+      fetch("/api/workspace", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : Promise.reject()))
+        .then((data) => {
+          setPeople(data.people ?? []);
+          setSequences(data.sequences ?? []);
+          if (data.metrics) setMetrics(data.metrics);
+          if (isDemo) setLiveDemo(data.mailbox?.provider === "gmail");
+        })
+        .catch(() => undefined);
+    };
+    const timer = window.setInterval(refreshWorkspace, 30_000);
+    const refreshVisibleWorkspace = () => {
+      if (document.visibilityState === "visible") refreshWorkspace();
+    };
+    document.addEventListener("visibilitychange", refreshVisibleWorkspace);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisibleWorkspace);
+    };
+  }, [isDemo]);
   async function syncMailbox() {
     setSyncing(true);
     try {
@@ -328,7 +352,7 @@ export default function Dashboard({
     }
   }
   async function openBriefing() {
-    if (isDemo) {
+    if (fixtureDemo) {
       const relationship = people[0];
       setModal({
         title: "InboxIQ demo relationship briefing",
@@ -461,23 +485,23 @@ export default function Dashboard({
               setActiveNav("pulse");
               setModal({
                 title: "Relationship pulse",
-                body: isDemo
+                body: fixtureDemo
                   ? "Your demo network contains 100 classified conversations split evenly across two identities. Personal Gmail leads at 86/100 with strong recent momentum. IIIT Guwahati is growing at 78/100, but its longer response gap makes it the next relationship to review. Thirty-five high-priority messages need attention. Recommended move: follow up on product direction first, then close the sprint-planning loop."
                   : strongest
                     ? `${strongest.name} is currently your strongest relationship at ${strongest.score}/100. ${attentionPeople.length ? `${attentionPeople.length} relationships need attention because their interaction momentum is declining.` : "No relationships are currently below the attention threshold."}`
                     : "No relationship activity is available yet. Synchronize Gmail to generate your pulse.",
                 kind: "detail",
                 fields: [
-                  { label: "PEOPLE MAPPED", value: String(isDemo ? 2 : metrics.people) },
-                  { label: "CONVERSATIONS", value: String(isDemo ? 100 : metrics.conversations) },
-                  { label: "STRONG RELATIONSHIPS", value: String(isDemo ? 2 : metrics.strong) },
-                  { label: "NEEDS ATTENTION", value: String(isDemo ? 35 : metrics.attention) },
+                  { label: "PEOPLE MAPPED", value: String(fixtureDemo ? 2 : metrics.people) },
+                  { label: "CONVERSATIONS", value: String(fixtureDemo ? 100 : metrics.conversations) },
+                  { label: "STRONG RELATIONSHIPS", value: String(fixtureDemo ? 2 : metrics.strong) },
+                  { label: "NEEDS ATTENTION", value: String(fixtureDemo ? 35 : metrics.attention) },
                   { label: "STRONGEST CONNECTION", value: strongest ? `${strongest.name} - ${strongest.score}/100` : "Not available" },
-                  { label: "RECOMMENDED ACTION", value: isDemo ? "Follow up on product direction, then sprint planning" : attentionPeople[0] ? `Reconnect with ${attentionPeople[0].name}` : "Maintain current relationship cadence" },
+                  { label: "RECOMMENDED ACTION", value: fixtureDemo ? "Follow up on product direction, then sprint planning" : attentionPeople[0] ? `Reconnect with ${attentionPeople[0].name}` : "Maintain current relationship cadence" },
                 ],
                 graph: {
                   center: "Relationship pulse",
-                  nodes: isDemo
+                  nodes: fixtureDemo
                     ? [
                         { label: "Personal Gmail", meta: "86/100 - strong", tone: "cyan" },
                         { label: "IIIT Guwahati", meta: "78/100 - growing", tone: "violet" },
@@ -534,8 +558,8 @@ export default function Dashboard({
             <Bell />
             <i />
           </button>
-          {isDemo ? (
-            <a className="connect" href="/api/auth/google">
+          {fixtureDemo ? (
+            <a className="connect" href="/api/auth/google?mode=demo">
               <Zap /> Connect your Gmail
             </a>
           ) : (
@@ -554,10 +578,10 @@ export default function Dashboard({
                 type="button"
                 className={fixStyles.notification}
                 onClick={() =>
-                  openNotificationTarget(isDemo ? "inbox" : "people")
+                  openNotificationTarget(fixtureDemo ? "inbox" : "people")
                 }
               >
-                {isDemo
+                {fixtureDemo
                   ? "35 high-priority messages detected in the demo inbox."
                   : attentionPeople[0]
                     ? `${attentionPeople[0].name} is losing relationship momentum.`
@@ -568,7 +592,7 @@ export default function Dashboard({
                 className={fixStyles.notification}
                 onClick={() => openNotificationTarget("sequences")}
               >
-                {isDemo
+                {fixtureDemo
                   ? "30 scheduling threads are ready for follow-up."
                   : sequences[0]
                     ? `${sequences[0].name}: ${sequences[0].rate} reply rate.`
@@ -606,7 +630,7 @@ export default function Dashboard({
                   onClick={() =>
                     setModal({
                       title: "Your relationship graph",
-                      body: isDemo
+                      body: fixtureDemo
                         ? "The original InboxIQ-v2 demo maps 100 messages from two sender identities: a personal Gmail address and an IIIT Guwahati address."
                         : `${people.length} mapped relationships. ${strongest ? `Your strongest relationship is ${strongest.name} at ${strongest.score}/100.` : "Sync Gmail to build your relationship graph."}`,
                       kind: "detail",
@@ -668,14 +692,14 @@ export default function Dashboard({
             <div>
               <small>NEURAL BRIEFING · UPDATED NOW</small>
               <b>
-                {isDemo
+                {fixtureDemo
                   ? "Your InboxIQ demo history is ready."
                   : attentionPeople.length
                     ? `${attentionPeople.length} relationships need attention.`
                     : "Your relationship graph is healthy."}
               </b>
               <p>
-                {isDemo
+                {fixtureDemo
                   ? "100 messages classified: 48 work, 18 general, 17 notifications, and 17 across other categories."
                   : attentionPeople.length
                     ? `${attentionPeople.map((person) => person.name).join(", ")} ${attentionPeople.length === 1 ? "is" : "are"} losing momentum.`
@@ -690,14 +714,7 @@ export default function Dashboard({
             <span className="scan" />
           </section>
           <section className="metrics">
-            {(isDemo
-              ? [
-                  ["PEOPLE MAPPED", "2", "2 sender identities"],
-                  ["STRONG ORBITS", "1", "1 growing relationship"],
-                  ["CONVERSATIONS", "100", "Original InboxIQ-v2 corpus"],
-                  ["NEEDS ATTENTION", "35", "35 high priority"],
-                ]
-              : [
+            {([
                   ["PEOPLE MAPPED", String(metrics.people), "From your Gmail"],
                   [
                     "STRONG ORBITS",
@@ -714,8 +731,7 @@ export default function Dashboard({
                     String(metrics.attention),
                     "Relationship score below 45",
                   ],
-                ]
-            ).map((x) => (
+                ]).map((x) => (
               <article className="glass" key={x[0]}>
                 <span>{x[0]}</span>
                 <b>{x[1]}</b>
@@ -726,7 +742,7 @@ export default function Dashboard({
             ))}
           </section>
           <InboxPanel onCompose={() => setComposerOpen(true)} />
-          <IntelligencePanel isDemo={isDemo} />
+          <IntelligencePanel isDemo={fixtureDemo} />
           <section id="people" className="block">
             <div className="sectionTitle">
               <div>

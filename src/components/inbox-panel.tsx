@@ -34,10 +34,27 @@ export default function InboxPanel({ onCompose }: { onCompose: () => void }) {
     [loading, setLoading] = useState(true),
     [selected, setSelected] = useState<InboxMessage | null>(null);
   useEffect(() => {
-    fetch("/api/inbox")
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data) => setMessages(data.messages ?? []))
-      .finally(() => setLoading(false));
+    let active = true;
+    const loadInbox = () =>
+      fetch("/api/inbox", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : Promise.reject()))
+        .then((data) => {
+          if (active) setMessages(data.messages ?? []);
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    void loadInbox();
+    const timer = window.setInterval(loadInbox, 30_000);
+    const refreshVisibleInbox = () => {
+      if (document.visibilityState === "visible") void loadInbox();
+    };
+    document.addEventListener("visibilitychange", refreshVisibleInbox);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisibleInbox);
+    };
   }, []);
   const visible = useMemo(
     () =>
