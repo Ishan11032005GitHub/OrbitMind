@@ -20,8 +20,9 @@ export default function LoginPage() {
     setError("");
     try {
       const response = await fetch("/api/auth/demo", { method: "POST" });
-      if (!response.ok) throw new Error("Demo session could not be created.");
-      window.location.assign(response.redirected ? response.url : "/");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Demo session could not be created.");
+      window.location.assign(result.redirectTo || "/");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Demo login failed.");
       setLoading(false);
