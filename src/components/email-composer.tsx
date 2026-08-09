@@ -1,5 +1,6 @@
 ﻿"use client";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Link2,
   LoaderCircle,
@@ -87,7 +88,7 @@ export default function EmailComposer({
       setSending(false);
     }
   }
-  return (
+  return createPortal(
     <div
       className={styles.overlay}
       role="dialog"
@@ -180,5 +181,5 @@ export default function EmailComposer({
         </footer>
       </section>
     </div>
-  );
+    , document.body);
 }
