@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import styles from "./dashboard.module.css";
+import fixStyles from "./dashboard-fixes.module.css";
 import { DEMO_ACCOUNT, demoSequences } from "@/data/demo-client";
 import SequenceBuilder, { type CreatedSequence } from "./sequence-builder";
 import EmailComposer from "./email-composer";
@@ -333,6 +334,18 @@ export default function Dashboard({
       notify(cause instanceof Error ? cause.message : "Briefing failed");
     }
   }
+  const openNotificationTarget = (
+    target: "inbox" | "people" | "sequences",
+  ) => {
+    setNotifications(false);
+    if (target === "people" || target === "sequences") setActiveNav(target);
+    requestAnimationFrame(() =>
+      document.getElementById(target)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      }),
+    );
+  };
   const initials = (user.name || accountEmail)
     .split(/[ @]/)
     .filter(Boolean)
@@ -411,7 +424,7 @@ export default function Dashboard({
       </aside>
       <section className="stage">
         <header className="topbar">
-          <label className="search">
+          <label className={`search ${fixStyles.search}`}>
             <Search />
             <input
               value={query}
@@ -449,20 +462,30 @@ export default function Dashboard({
           {notifications && (
             <div className={styles.notifications}>
               <b>Neural alerts</b>
-              <p>
+              <button
+                type="button"
+                className={fixStyles.notification}
+                onClick={() =>
+                  openNotificationTarget(isDemo ? "inbox" : "people")
+                }
+              >
                 {isDemo
                   ? "35 high-priority messages detected in the demo inbox."
                   : attentionPeople[0]
                     ? `${attentionPeople[0].name} is losing relationship momentum.`
                     : "No critical relationship alerts."}
-              </p>
-              <p>
+              </button>
+              <button
+                type="button"
+                className={fixStyles.notification}
+                onClick={() => openNotificationTarget("sequences")}
+              >
                 {isDemo
                   ? "30 scheduling threads are ready for follow-up."
                   : sequences[0]
                     ? `${sequences[0].name}: ${sequences[0].rate} reply rate.`
                     : "No active sequence alerts."}
-              </p>
+              </button>
             </div>
           )}
         </header>

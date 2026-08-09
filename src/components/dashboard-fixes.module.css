@@ -1,0 +1,57 @@
+.search input {
+  min-width: 0;
+  flex: 1;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: #f5f7ff;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.search input::placeholder {
+  color: #737d92;
+  opacity: 1;
+}
+
+.search:focus-within {
+  border-color: rgba(66, 245, 233, 0.34);
+  box-shadow:
+    0 0 0 3px rgba(66, 245, 233, 0.06),
+    0 0 24px rgba(66, 245, 233, 0.07);
+}
+
+.search > svg {
+  flex: 0 0 auto;
+}
+
+.notification {
+  display: block;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 10px 6px 4px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
+  color: #8b95a8;
+  text-align: left;
+  font-size: 9px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    transform 0.2s;
+}
+
+.notification:hover,
+.notification:focus-visible {
+  border-radius: 7px;
+  outline: none;
+  background: rgba(66, 245, 233, 0.04);
+  color: #c5fffb;
+  transform: translateX(2px);
+}
