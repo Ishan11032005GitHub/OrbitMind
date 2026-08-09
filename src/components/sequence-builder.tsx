@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import styles from "./sequence-builder.module.css";
+import fixStyles from "./sequence-builder-fixes.module.css";
 import MultiEmailInput from "./multi-email-input";
 
 type Step = { id: string; subject: string; body: string; scheduledAt: string };
@@ -245,6 +246,7 @@ export default function SequenceBuilder({
             <label>
               Gmail thread
               <select
+                className={fixStyles.threadSelect}
                 value={threadId}
                 onChange={(event) => setThreadId(event.target.value)}
                 required

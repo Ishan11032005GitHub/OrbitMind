@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       { status: 429, headers: { "Retry-After": String(rate.retryAfter) } },
     );
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
+  if (origin && origin !== new URL(env().APP_URL).origin)
     return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
