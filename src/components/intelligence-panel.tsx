@@ -25,7 +25,7 @@ type Briefing = {
   avoid: string[];
 };
 
-export default function IntelligencePanel() {
+export default function IntelligencePanel({ isDemo }: { isDemo: boolean }) {
   const [data, setData] = useState<InsightData | null>(null);
   const [query, setQuery] = useState("");
   const [company, setCompany] = useState("");
@@ -57,6 +57,21 @@ export default function IntelligencePanel() {
   const paths = () => void load(company.trim() ? `?company=${encodeURIComponent(company.trim())}` : "");
 
   const generateBriefing = async () => {
+    if (isDemo) {
+      setBriefing({
+        summary: "Your demo relationship briefing is ready",
+        relationshipContext: "One hundred conversations are mapped across two identities. The personal Gmail relationship is strongest at 86/100, while the IIIT Guwahati relationship is growing at 78/100.",
+        openLoops: [
+          "Follow up on the product-direction conversation.",
+          "Close the loop on sprint-planning action items.",
+          "Review the latest project feedback before the next meeting.",
+        ],
+        talkingPoints: ["Product direction", "Sprint planning", "Project review"],
+        avoid: ["Do not invent context outside the demo conversation history."],
+      });
+      setStatus("Demo briefing generated from the mapped InboxIQ history.");
+      return;
+    }
     setLoading(true);
     try {
       const response = await fetch("/api/insights", {
@@ -87,6 +102,15 @@ export default function IntelligencePanel() {
           {loading ? <LoaderCircle className={styles.spin} /> : <Sparkles />} Generate briefing
         </button>
       </div>
+      {briefing && (
+        <article className={`${styles.card} ${styles.briefing}`}>
+          <h3>{briefing.summary}</h3>
+          <p>{briefing.relationshipContext}</p>
+          {briefing.openLoops.length > 0 && (
+            <ul>{briefing.openLoops.map((item) => <li key={item}>{item}</li>)}</ul>
+          )}
+        </article>
+      )}
       <div className={styles.grid}>
         <article className={styles.card}>
           <h3>Ask your network</h3>
@@ -140,10 +164,6 @@ export default function IntelligencePanel() {
             )) : company && <span className={styles.status}>No verified path found. More shared-thread evidence may be needed.</span>}
           </div>
         </article>
-        {briefing && <article className={`${styles.card} ${styles.briefing}`}>
-          <h3>{briefing.summary}</h3><p>{briefing.relationshipContext}</p>
-          {briefing.openLoops.length > 0 && <ul>{briefing.openLoops.map((item) => <li key={item}>{item}</li>)}</ul>}
-        </article>}
       </div>
       {status && <p className={styles.status}>{status}</p>}
     </section>

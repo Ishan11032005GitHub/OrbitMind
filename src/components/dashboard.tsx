@@ -328,6 +328,32 @@ export default function Dashboard({
     }
   }
   async function openBriefing() {
+    if (isDemo) {
+      const relationship = people[0];
+      setModal({
+        title: "InboxIQ demo relationship briefing",
+        body: "Your demo history contains 100 classified email interactions across two identities. The personal Gmail relationship is currently strongest, while the IIIT Guwahati relationship is growing.\n\nThe latest conversations focus on product direction, sprint planning, project feedback, and review follow-ups. Prioritize the open product-direction conversation, then close the loop on the academic planning thread.",
+        kind: "detail",
+        fields: [
+          { label: "MESSAGES ANALYZED", value: "100" },
+          { label: "IDENTITIES", value: "2" },
+          { label: "STRONGEST RELATIONSHIP", value: relationship ? `${relationship.name} - ${relationship.score}/100` : "Ishan Tiwari - 86/100" },
+          { label: "CLASSIFICATION", value: "48 work - 18 general - 17 notifications - 17 other" },
+          { label: "NEXT ACTION", value: "Follow up on the product-direction conversation" },
+          { label: "RELATIONSHIP STATUS", value: "Strong and growing" },
+        ],
+        graph: {
+          center: "Your demo network",
+          nodes: [
+            { label: "Personal Gmail", meta: "50 signals - 86/100", tone: "cyan" },
+            { label: "IIIT Guwahati", meta: "50 signals - 78/100", tone: "violet" },
+            { label: "35 high priority", meta: "Needs attention", tone: "pink" },
+            { label: "100 conversations", meta: "Mapped history", tone: "amber" },
+          ],
+        },
+      });
+      return;
+    }
     notify("Generating relationship briefing…");
     try {
       const response = await fetch("/api/insights", {
@@ -673,7 +699,7 @@ export default function Dashboard({
             ))}
           </section>
           <InboxPanel onCompose={() => setComposerOpen(true)} />
-          <IntelligencePanel />
+          <IntelligencePanel isDemo={isDemo} />
           <section id="people" className="block">
             <div className="sectionTitle">
               <div>

@@ -3,12 +3,34 @@ import { currentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { DEMO_ACCOUNT } from "@/data/demo-workspace";
 
-const demoMessages = [
-  { id: "demo-1", subject: "1:1 this week?", snippet: "Can we find thirty minutes to align on the product direction and next milestones?", sender: "Ishan Tiwari", email: "ishan11032005@gmail.com", direction: "received", occurredAt: new Date(Date.now() - 43_200_000).toISOString(), category: "Work", priority: "High" },
-  { id: "demo-2", subject: "Sprint planning — Monday 10 AM", snippet: "Sharing the agenda before Monday's planning session. Please add anything we missed.", sender: "Ishan Tiwari · IIITG", email: "ishan.tiwari23b@iiitg.ac.in", direction: "received", occurredAt: new Date(Date.now() - 50_580_000).toISOString(), category: "Academic", priority: "Medium" },
-  { id: "demo-3", subject: "Re: InboxIQ product feedback", snippet: "The relationship intelligence direction is promising. Let's discuss the next iteration.", sender: "Ishan Tiwari", email: "ishan11032005@gmail.com", direction: "sent", occurredAt: new Date(Date.now() - 86_400_000).toISOString(), category: "Work", priority: "High" },
-  { id: "demo-4", subject: "Project review notes", snippet: "Attached are the notes and action items from our latest review.", sender: "Ishan Tiwari · IIITG", email: "ishan.tiwari23b@iiitg.ac.in", direction: "received", occurredAt: new Date(Date.now() - 172_800_000).toISOString(), category: "Academic", priority: "Low" },
-];
+const demoSubjects = [
+  ["1:1 this week?", "Can we find thirty minutes to align on the product direction and next milestones?"],
+  ["Sprint planning - Monday 10 AM", "Sharing the agenda before Monday's planning session. Please add anything we missed."],
+  ["Re: InboxIQ product feedback", "The relationship intelligence direction is promising. Let's discuss the next iteration."],
+  ["Project review notes", "Attached are the notes and action items from our latest review."],
+  ["Quick follow-up on the roadmap", "Following up with the decisions and owners from our roadmap conversation."],
+  ["Demo feedback and next steps", "The demo landed well. Here are the questions and next steps we captured."],
+  ["Research sync", "Can we compare findings and decide what should move into the next experiment?"],
+  ["Re: Design review", "I reviewed the latest screens and left a few focused comments for the next pass."],
+  ["Weekly progress update", "A concise update on completed work, open questions, and priorities for this week."],
+  ["Calendar confirmation", "Confirming the time and agenda for our upcoming conversation."],
+] as const;
+
+const demoMessages = Array.from({ length: 100 }, (_, index) => {
+  const academic = index % 2 === 1;
+  const template = demoSubjects[index % demoSubjects.length];
+  return {
+    id: `demo-${index + 1}`,
+    subject: index < demoSubjects.length ? template[0] : `${template[0]} - ${Math.floor(index / demoSubjects.length) + 1}`,
+    snippet: template[1],
+    sender: academic ? "Ishan Tiwari - IIITG" : "Ishan Tiwari",
+    email: academic ? "ishan.tiwari23b@iiitg.ac.in" : "ishan11032005@gmail.com",
+    direction: index % 4 === 2 ? "sent" : "received",
+    occurredAt: new Date(Date.now() - (index + 1) * 43_200_000).toISOString(),
+    category: academic ? "Academic" : "Work",
+    priority: index % 5 === 0 ? "High" : index % 3 === 0 ? "Low" : "Medium",
+  };
+});
 
 export async function GET() {
   const user = await currentUser();
