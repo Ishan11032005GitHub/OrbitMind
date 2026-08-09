@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { persistUserSession, SESSION_COOKIE } from "@/lib/auth/session";
-import { seedInboxIqDemo } from "@/lib/demo/seed";
 import { DEMO_ACCOUNT } from "@/data/demo-workspace";
 
 export async function POST(request: Request) {
@@ -14,15 +13,10 @@ export async function POST(request: Request) {
       update: { displayName: DEMO_ACCOUNT.displayName },
       create: { email: DEMO_ACCOUNT.internalEmail, displayName: DEMO_ACCOUNT.displayName },
     });
-    await seedInboxIqDemo(user.id);
-    const connectedMailbox = await db.mailbox.findFirst({
-      where: { userId: user.id, provider: "gmail", accessTokenEncrypted: { not: null } },
-      select: { id: true },
-    });
     const session = await persistUserSession(user.id);
     const response = NextResponse.json({
       ok: true,
-      redirectTo: connectedMailbox ? "/" : "/api/auth/google?mode=demo",
+      redirectTo: "/",
     });
     response.cookies.set(SESSION_COOKIE, session.raw, {
       httpOnly: true,

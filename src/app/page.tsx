@@ -12,8 +12,8 @@ export default async function Home() {
     where: { userId: user.id, provider: "gmail", accessTokenEncrypted: { not: null } },
     select: { id: true },
   });
-  if (!connectedMailbox)
-    redirect(user.email === DEMO_ACCOUNT.internalEmail ? "/api/auth/google?mode=demo" : "/api/auth/google");
+  if (!connectedMailbox && user.email !== DEMO_ACCOUNT.internalEmail)
+    redirect("/api/auth/google");
   const [contacts, storedSequences] = await Promise.all([
     db.contact.findMany({
       where: { userId: user.id },
