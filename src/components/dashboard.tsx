@@ -157,16 +157,9 @@ export default function Dashboard({
         setPeople(data.people ?? []);
         setSequences(data.sequences ?? []);
         if (data.metrics) setMetrics(data.metrics);
-        if (isDemo) setLiveDemo(data.mailbox?.provider === "gmail");
-        const syncKey = `orbitmind-auto-sync:${user.email}`;
-        if (data.mailbox?.provider === "gmail" && !sessionStorage.getItem(syncKey)) {
-          sessionStorage.setItem(syncKey, "started");
-          void syncMailbox();
-        }
+        setLiveDemo(data.mailbox?.provider === "gmail");
       })
       .catch(() => notify("Workspace data could not be loaded"));
-    // The initial load intentionally owns the one-time mailbox sync trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDemo, user.email]);
   useEffect(() => {
     const refreshWorkspace = () => {
@@ -176,7 +169,7 @@ export default function Dashboard({
           setPeople(data.people ?? []);
           setSequences(data.sequences ?? []);
           if (data.metrics) setMetrics(data.metrics);
-          if (isDemo) setLiveDemo(data.mailbox?.provider === "gmail");
+          setLiveDemo(data.mailbox?.provider === "gmail");
         })
         .catch(() => undefined);
     };
@@ -197,27 +190,33 @@ export default function Dashboard({
     if (!liveDemo) return;
     let active = true;
     let syncing = false;
+    let pageToken: string | undefined;
     const syncNewMail = async () => {
       if (!active || syncing || document.visibilityState !== "visible") return;
       syncing = true;
       try {
-        const response = await fetch("/api/gmail/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ batchSize: 25 }),
-        });
-        if (response.ok) {
+        let imported = 0;
+        for (let batch = 0; batch < 5 && active; batch++) {
+          const response = await fetch("/api/gmail/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ batchSize: 50, pageToken }),
+          });
+          if (!response.ok) break;
           const result = await response.json();
-          if (result.imported > 0)
-            window.dispatchEvent(new Event("orbitmind:mailbox-updated"));
+          imported += result.imported ?? 0;
+          pageToken = result.nextPageToken ?? undefined;
+          if (!pageToken) break;
         }
+        if (imported > 0)
+          window.dispatchEvent(new Event("orbitmind:mailbox-updated"));
       } catch {
         // Keep the live loop quiet during temporary network interruptions.
       } finally {
         syncing = false;
       }
     };
-    const first = window.setTimeout(syncNewMail, 2_000);
+    const first = window.setTimeout(syncNewMail, 250);
     const timer = window.setInterval(syncNewMail, 8_000);
     const syncWhenVisible = () => void syncNewMail();
     document.addEventListener("visibilitychange", syncWhenVisible);
