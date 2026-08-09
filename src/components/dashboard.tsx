@@ -27,6 +27,12 @@ import SequenceBuilder, { type CreatedSequence } from "./sequence-builder";
 import EmailComposer from "./email-composer";
 import InboxPanel from "./inbox-panel";
 import IntelligencePanel from "./intelligence-panel";
+import {
+  DetailFields,
+  RelationshipGraph,
+  type DetailField,
+  type GraphNode,
+} from "./relationship-detail";
 
 const seedPeople = [
   {
@@ -114,7 +120,13 @@ const showcaseSequences = [
     hue: "pink",
   },
 ];
-type Modal = { title: string; body: string; kind?: "person" | "form" } | null;
+type Modal = {
+  title: string;
+  body: string;
+  kind?: "person" | "form" | "detail";
+  fields?: DetailField[];
+  graph?: { center: string; nodes: GraphNode[] };
+} | null;
 type Person = (typeof seedPeople)[number];
 export default function Dashboard({
   user,
@@ -326,9 +338,32 @@ export default function Dashboard({
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Briefing failed");
       const briefing = result.briefing;
+      const relationship = people.find((person) => person.name === result.contact);
       setModal({
         title: `${result.contact} relationship briefing`,
         body: [briefing.summary, briefing.relationshipContext, ...(briefing.openLoops ?? []).map((item: string) => `Open loop: ${item}`), ...(briefing.talkingPoints ?? []).map((item: string) => `Talking point: ${item}`)].filter(Boolean).join("\n\n"),
+        kind: "detail",
+        fields: relationship
+          ? [
+              { label: "EMAIL", value: relationship.mail },
+              { label: "COMPANY", value: relationship.company },
+              { label: "RELATIONSHIP HEALTH", value: `${relationship.score}/100 · ${relationship.strength}` },
+              { label: "INTERACTIONS", value: `${relationship.messages} messages across ${relationship.threads} threads` },
+              { label: "LAST SIGNAL", value: relationship.time },
+              { label: "DIRECTION", value: relationship.direction },
+            ]
+          : [],
+        graph: relationship
+          ? {
+              center: relationship.name,
+              nodes: [
+                { label: "You", meta: `${relationship.score}/100 connection`, tone: "cyan" },
+                { label: relationship.company, meta: relationship.type, tone: "violet" },
+                { label: `${relationship.threads} threads`, meta: `${relationship.messages} signals`, tone: "pink" },
+                { label: relationship.strength, meta: relationship.time, tone: "amber" },
+              ],
+            }
+          : undefined,
       });
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Briefing failed");
@@ -521,6 +556,21 @@ export default function Dashboard({
                       body: isDemo
                         ? "The original InboxIQ-v2 demo maps 100 messages from two sender identities: a personal Gmail address and an IIIT Guwahati address."
                         : `${people.length} mapped relationships. ${strongest ? `Your strongest relationship is ${strongest.name} at ${strongest.score}/100.` : "Sync Gmail to build your relationship graph."}`,
+                      kind: "detail",
+                      fields: [
+                        { label: "PEOPLE MAPPED", value: String(people.length) },
+                        { label: "STRONGEST CONNECTION", value: strongest ? `${strongest.name} · ${strongest.score}/100` : "Not available" },
+                        { label: "TOTAL SIGNALS", value: String(people.reduce((total, person) => total + person.messages, 0)) },
+                        { label: "TOTAL THREADS", value: String(people.reduce((total, person) => total + person.threads, 0)) },
+                      ],
+                      graph: {
+                        center: "You",
+                        nodes: people.slice(0, 4).map((person, index) => ({
+                          label: person.name,
+                          meta: `${person.score}/100 · ${person.company}`,
+                          tone: (["cyan", "violet", "pink", "amber"] as const)[index],
+                        })),
+                      },
                     })
                   }
                 >
@@ -668,6 +718,26 @@ export default function Dashboard({
                     setModal({
                       title: p.name,
                       body: `${p.company} · ${p.type}. Connection health ${p.score}/100 from ${p.messages} messages across ${p.threads} threads.`,
+                      kind: "detail",
+                      fields: [
+                        { label: "EMAIL", value: p.mail },
+                        { label: "COMPANY", value: p.company },
+                        { label: "CLASSIFICATION", value: p.type },
+                        { label: "RELATIONSHIP", value: `${p.score}/100 · ${p.strength}` },
+                        { label: "LAST INTERACTION", value: p.time },
+                        { label: "DIRECTION", value: p.direction },
+                        { label: "MESSAGE SIGNALS", value: String(p.messages) },
+                        { label: "THREADS", value: String(p.threads) },
+                      ],
+                      graph: {
+                        center: p.name,
+                        nodes: [
+                          { label: "You", meta: `${p.score}/100 connection`, tone: "cyan" },
+                          { label: p.company, meta: p.type, tone: "violet" },
+                          { label: `${p.threads} threads`, meta: `${p.messages} signals`, tone: "pink" },
+                          { label: p.strength, meta: p.time, tone: "amber" },
+                        ],
+                      },
                     })
                   }
                 >
@@ -748,6 +818,22 @@ export default function Dashboard({
                     setModal({
                       title: company.name,
                       body: `${company.contacts} mapped ${company.contacts === 1 ? "person" : "people"} · ${company.signals} email signals · ${company.score}/100 average relationship health. Primary classification: ${company.category}.`,
+                      kind: "detail",
+                      fields: [
+                        { label: "DOMAIN", value: company.domain },
+                        { label: "CLASSIFICATION", value: company.category },
+                        { label: "MAPPED PEOPLE", value: String(company.contacts) },
+                        { label: "EMAIL SIGNALS", value: String(company.signals) },
+                        { label: "AVERAGE HEALTH", value: `${company.score}/100` },
+                        { label: "NETWORK STATUS", value: company.score >= 75 ? "Strong relationship" : company.score >= 50 ? "Growing relationship" : "Needs attention" },
+                      ],
+                      graph: {
+                        center: company.name,
+                        nodes: [
+                          ...people.filter((person) => person.company === company.name).slice(0, 3).map((person, index) => ({ label: person.name, meta: `${person.score}/100 · ${person.messages} signals`, tone: (["cyan", "violet", "pink"] as const)[index] })),
+                          { label: "You", meta: `${company.signals} shared signals`, tone: "amber" },
+                        ],
+                      },
                     })
                   }
                 >
@@ -808,6 +894,24 @@ export default function Dashboard({
                     setModal({
                       title: s.name,
                       body: `${s.detail}. ${s.enrolled} enrolled, ${s.replies} replies, ${s.rate} reply rate. ${s.next}.`,
+                      kind: "detail",
+                      fields: [
+                        { label: "STATUS", value: s.status },
+                        { label: "DETAIL", value: s.detail },
+                        { label: "ENROLLED", value: String(s.enrolled) },
+                        { label: "REPLIES", value: String(s.replies) },
+                        { label: "REPLY RATE", value: s.rate },
+                        { label: "NEXT ACTION", value: s.next },
+                      ],
+                      graph: {
+                        center: s.name,
+                        nodes: [
+                          { label: `${s.enrolled} enrolled`, meta: "Recipients", tone: "cyan" },
+                          { label: `${s.replies} replies`, meta: s.rate, tone: "violet" },
+                          { label: s.status, meta: "Sequence status", tone: "pink" },
+                          { label: s.next, meta: "Next action", tone: "amber" },
+                        ],
+                      },
                     })
                   }
                 >
@@ -886,7 +990,7 @@ export default function Dashboard({
       {modal && (
         <div className={styles.overlay} onMouseDown={() => setModal(null)}>
           <section
-            className={styles.modal}
+            className={`${styles.modal} ${modal.kind === "detail" ? fixStyles.detailModal : ""}`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <button className={styles.close} onClick={() => setModal(null)}>
@@ -909,7 +1013,11 @@ export default function Dashboard({
                 </button>
               </form>
             ) : (
-              <p>{modal.body}</p>
+              <>
+                <p className={fixStyles.detailBody}>{modal.body}</p>
+                {modal.fields?.length ? <DetailFields fields={modal.fields} /> : null}
+                {modal.graph ? <RelationshipGraph center={modal.graph.center} nodes={modal.graph.nodes} /> : null}
+              </>
             )}
           </section>
         </div>

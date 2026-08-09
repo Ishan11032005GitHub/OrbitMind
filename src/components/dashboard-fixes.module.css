@@ -55,3 +55,13 @@
   color: #c5fffb;
   transform: translateX(2px);
 }
+
+.detailModal {
+  width: min(760px, 100%);
+  max-height: min(88vh, 820px);
+  overflow-y: auto;
+}
+
+.detailBody {
+  white-space: pre-line;
+}

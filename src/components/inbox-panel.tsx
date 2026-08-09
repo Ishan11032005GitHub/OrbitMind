@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Inbox, MailPlus, Search } from "lucide-react";
 import styles from "./inbox-panel.module.css";
+import modalStyles from "./inbox-detail.module.css";
+import { DetailFields, RelationshipGraph } from "./relationship-detail";
 type InboxMessage = {
   id: string;
   subject: string;
@@ -131,7 +133,7 @@ export default function InboxPanel({ onCompose }: { onCompose: () => void }) {
       {selected && (
         <div className="overlay" onMouseDown={() => setSelected(null)}>
           <section
-            className="modal"
+            className={`modal ${modalStyles.modal}`}
             onMouseDown={(event) => event.stopPropagation()}
           >
             <button className="close" onClick={() => setSelected(null)}>
@@ -145,6 +147,25 @@ export default function InboxPanel({ onCompose }: { onCompose: () => void }) {
               <b>{selected.sender}</b> · {selected.email}
             </p>
             <p>{selected.snippet}</p>
+            <DetailFields
+              fields={[
+                { label: "CONTACT", value: selected.sender },
+                { label: "EMAIL", value: selected.email },
+                { label: "DIRECTION", value: selected.direction },
+                { label: "CATEGORY", value: selected.category },
+                { label: "PRIORITY", value: selected.priority },
+                { label: "OCCURRED", value: new Date(selected.occurredAt).toLocaleString() },
+              ]}
+            />
+            <RelationshipGraph
+              center={selected.sender}
+              nodes={[
+                { label: "You", meta: selected.direction === "sent" ? "Message sent" : "Message received", tone: "cyan" },
+                { label: selected.category, meta: "Classification", tone: "violet" },
+                { label: selected.priority, meta: "Priority", tone: "pink" },
+                { label: relativeTime(selected.occurredAt), meta: "Latest signal", tone: "amber" },
+              ]}
+            />
             <button
               className="neonButton"
               onClick={() => {
