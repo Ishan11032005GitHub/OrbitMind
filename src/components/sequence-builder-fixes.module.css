@@ -28,3 +28,34 @@
   background: #0a0d15;
   color: #edf1fa;
 }
+.timezoneSelect {
+  width: 100%;
+  margin-top: 7px;
+  padding: 9px 34px 9px 10px;
+  border: 1px solid rgba(157, 115, 255, 0.35);
+  border-radius: 8px;
+  outline: none;
+  appearance: none;
+  background-color: #080b12;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #aa89ff 50%),
+    linear-gradient(135deg, #aa89ff 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 50%,
+    calc(100% - 10px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: #d9d2ff;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.timezoneSelect:focus {
+  border-color: rgba(157, 115, 255, 0.75);
+  box-shadow: 0 0 0 3px rgba(157, 115, 255, 0.08);
+}
+
+.timezoneSelect option {
+  background: #0a0d15;
+  color: #edf1fa;
+}

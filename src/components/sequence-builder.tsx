@@ -25,6 +25,20 @@ type ThreadOption = {
   lastMessageAt: string;
   snippet?: string | null;
 };
+const TIMEZONES = [
+  "Asia/Kolkata",
+  "UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Paris",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+];
 export type CreatedSequence = {
   name: string;
   detail: string;
@@ -67,6 +81,9 @@ export default function SequenceBuilder({
   const [saving, setSaving] = useState(false);
   const [aiDrafting, setAiDrafting] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [timezone, setTimezone] = useState(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+  );
 
   const updateStep = (id: string, patch: Partial<Step>) =>
     setSteps((current) =>
@@ -135,8 +152,7 @@ export default function SequenceBuilder({
           bcc,
           threadMode,
           threadId: threadMode === "existing" ? threadId : undefined,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+          timezone,
           steps: steps.map(({ subject, body, scheduledAt }) => ({
             subject,
             body,
@@ -268,16 +284,26 @@ export default function SequenceBuilder({
               )}
             </label>
           )}
-          <div className={styles.guardrail}>
+          <label className={`${styles.guardrail} ${styles.timezoneControl}`}>
             <Clock3 />
             <span>
               <b>Your timezone</b>
-              <small>
-                {Intl.DateTimeFormat().resolvedOptions().timeZone ||
-                  "Asia/Kolkata"}
-              </small>
+              <select className={fixStyles.timezoneSelect}
+                value={timezone}
+                onChange={(event) => setTimezone(event.target.value)}
+                aria-label="Sequence timezone"
+              >
+                {!TIMEZONES.includes(timezone) && (
+                  <option value={timezone}>{timezone}</option>
+                )}
+                {TIMEZONES.map((zone) => (
+                  <option value={zone} key={zone}>
+                    {zone}
+                  </option>
+                ))}
+              </select>
             </span>
-          </div>
+          </label>
           <div className={styles.guardrail}>
             <Send />
             <span>
@@ -296,9 +322,14 @@ export default function SequenceBuilder({
                 send date and time.
               </p>
             </div>
-            <span>
-              {steps.length} {steps.length === 1 ? "EMAIL" : "EMAILS"}
-            </span>
+            <div className={styles.headingActions}>
+              <span>
+                {steps.length} {steps.length === 1 ? "EMAIL" : "EMAILS"}
+              </span>
+              <button onClick={addStep}>
+                <Plus /> Add email
+              </button>
+            </div>
           </div>
           <div className={styles.timeline}>
             {steps.map((step, index) => (
