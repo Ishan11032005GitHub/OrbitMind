@@ -14,7 +14,7 @@ export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (user.email === DEMO_ACCOUNT.internalEmail) return NextResponse.json({ messages: demoMessages, demo: true });
-  const messages = await db.mailMessage.findMany({ where: { mailbox: { userId: user.id } }, include: { participants: true }, orderBy: { occurredAt: "desc" }, take: 100 });
+  const messages = await db.mailMessage.findMany({ where: { mailbox: { userId: user.id } }, include: { participants: true }, orderBy: { occurredAt: "desc" } });
   return NextResponse.json({ messages: messages.map((message) => {
     const preferredRole = message.direction === "received" ? "from" : "to";
     const participant = message.participants.find((item) => item.role === preferredRole) ?? message.participants[0];
