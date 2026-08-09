@@ -80,6 +80,10 @@ export default function EmailComposer({
         }),
       });
       const data = await response.json();
+      if (!response.ok && data.reconnectUrl) {
+        window.location.assign(data.reconnectUrl);
+        return;
+      }
       if (!response.ok)
         throw new Error(data.error || "Email could not be sent.");
       onSent(

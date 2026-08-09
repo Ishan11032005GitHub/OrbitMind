@@ -187,12 +187,12 @@ export async function POST(request: Request) {
     const code = cause instanceof Error ? cause.message : "";
     if (code === "GMAIL_NOT_CONNECTED")
       return NextResponse.json(
-        { error: "Connect Gmail before sending email." },
+        { error: "Connecting Gmail…", reconnectUrl: user.email === "demo@stealth.local" ? "/api/auth/google?mode=demo" : "/api/auth/google" },
         { status: 409 },
       );
     if (code === "GMAIL_RECONNECT_REQUIRED")
       return NextResponse.json(
-        { error: "Reconnect Gmail and grant email access." },
+        { error: "Reconnecting Gmail…", reconnectUrl: user.email === "demo@stealth.local" ? "/api/auth/google?mode=demo" : "/api/auth/google" },
         { status: 401 },
       );
     console.error("Email send failed", cause);

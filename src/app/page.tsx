@@ -3,10 +3,17 @@ import Dashboard from "@/components/dashboard";
 import { currentUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { preciseRelativeTime } from "@/domain/relationship";
+import { DEMO_ACCOUNT } from "@/data/demo-workspace";
 
 export default async function Home() {
   const user = await currentUser();
   if (!user) redirect("/login");
+  const connectedMailbox = await db.mailbox.findFirst({
+    where: { userId: user.id, provider: "gmail", accessTokenEncrypted: { not: null } },
+    select: { id: true },
+  });
+  if (!connectedMailbox)
+    redirect(user.email === DEMO_ACCOUNT.internalEmail ? "/api/auth/google?mode=demo" : "/api/auth/google");
   const [contacts, storedSequences] = await Promise.all([
     db.contact.findMany({
       where: { userId: user.id },

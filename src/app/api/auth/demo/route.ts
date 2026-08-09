@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const response = NextResponse.redirect(new URL("/", publicOrigin), 303);
     response.cookies.set(SESSION_COOKIE, session.raw, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       expires: session.expiresAt,
