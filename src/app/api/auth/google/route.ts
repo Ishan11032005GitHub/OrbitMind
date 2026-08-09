@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const stateCookie = encryptPrivateContext({ state, verifier, mode, expiresAt: Date.now() + 10 * 60_000 }, config.AUTH_SECRET);
   const params = new URLSearchParams({ client_id: config.GOOGLE_CLIENT_ID, redirect_uri: config.GOOGLE_REDIRECT_URI, response_type: "code", scope: scopes.join(" "), access_type: "offline", prompt: "consent", include_granted_scopes: "true", state, code_challenge: challenge, code_challenge_method: "S256" });
+  if (mode === "demo") params.set("login_hint", config.DEMO_GMAIL_USER ?? "demoinboxiq@gmail.com");
   const response = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
   response.cookies.set("stealth_oauth", stateCookie, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/auth/google/callback", maxAge: 600 });
   return response;

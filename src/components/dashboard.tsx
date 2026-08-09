@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import styles from "./dashboard.module.css";
 import fixStyles from "./dashboard-fixes.module.css";
-import { DEMO_ACCOUNT, demoSequences } from "@/data/demo-client";
+import { DEMO_ACCOUNT } from "@/data/demo-client";
 import SequenceBuilder, { type CreatedSequence } from "./sequence-builder";
 import EmailComposer from "./email-composer";
 import InboxPanel from "./inbox-panel";
@@ -34,92 +34,6 @@ import {
   type GraphNode,
 } from "./relationship-detail";
 
-const seedPeople = [
-  {
-    name: "Maya Chen",
-    mail: "maya@northstar.ai",
-    company: "Northstar AI",
-    type: "Founder",
-    score: 94,
-    strength: "Orbit",
-    time: "1h 17m ago",
-    direction: "Received",
-    messages: 65,
-    threads: 12,
-    hue: "cyan",
-  },
-  {
-    name: "Arjun Mehta",
-    mail: "arjun@orbital.so",
-    company: "Orbital",
-    type: "Investor",
-    score: 81,
-    strength: "Strong",
-    time: "1d 20h ago",
-    direction: "Sent",
-    messages: 30,
-    threads: 7,
-    hue: "violet",
-  },
-  {
-    name: "Sarah Williams",
-    mail: "sarah@paperplane.design",
-    company: "Paperplane",
-    type: "Partner",
-    score: 73,
-    strength: "Growing",
-    time: "8d 3h ago",
-    direction: "Received",
-    messages: 20,
-    threads: 5,
-    hue: "pink",
-  },
-  {
-    name: "Dev Kapoor",
-    mail: "dev@pixelcraft.dev",
-    company: "Pixelcraft",
-    type: "Client",
-    score: 48,
-    strength: "Drifting",
-    time: "26d 1h ago",
-    direction: "Sent",
-    messages: 9,
-    threads: 3,
-    hue: "amber",
-  },
-];
-const showcaseSequences = [
-  {
-    name: "Founder introductions",
-    detail: "Warm network · 3 steps",
-    status: "LIVE",
-    enrolled: 28,
-    replies: 11,
-    rate: "39%",
-    next: "14 launches today",
-    hue: "cyan",
-  },
-  {
-    name: "Investor follow-ups",
-    detail: "Seed investors · 4 steps",
-    status: "LIVE",
-    enrolled: 16,
-    replies: 7,
-    rate: "44%",
-    next: "6 launches tomorrow",
-    hue: "violet",
-  },
-  {
-    name: "Revive dormant orbit",
-    detail: "No contact in 90 days · AI draft",
-    status: "DRAFT",
-    enrolled: 42,
-    replies: 0,
-    rate: "—",
-    next: "Awaiting review",
-    hue: "pink",
-  },
-];
 type Modal = {
   title: string;
   body: string;
@@ -127,7 +41,18 @@ type Modal = {
   fields?: DetailField[];
   graph?: { center: string; nodes: GraphNode[] };
 } | null;
-type Person = (typeof seedPeople)[number] & {
+type Person = {
+  name: string;
+  mail: string;
+  company: string;
+  type: string;
+  score: number;
+  strength: string;
+  time: string;
+  direction: string;
+  messages: number;
+  threads: number;
+  hue: string;
   sent?: number;
   received?: number;
   scoreFactors?: { name: string; points: number; detail: string }[];
@@ -145,7 +70,7 @@ export default function Dashboard({
   const isDemo = user.email === DEMO_ACCOUNT.internalEmail;
   const accountEmail = isDemo ? DEMO_ACCOUNT.displayEmail : user.email;
   const [liveDemo, setLiveDemo] = useState(false);
-  const fixtureDemo = isDemo && !liveDemo;
+  const fixtureDemo = false;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [activeNav, setActiveNav] = useState("people");
@@ -157,12 +82,12 @@ export default function Dashboard({
   const [toast, setToast] = useState("");
   const [notifications, setNotifications] = useState(false);
   const [people, setPeople] = useState<Person[]>(
-    initialPeople.length ? initialPeople : isDemo ? seedPeople : [],
+    initialPeople,
   );
   const [sequences, setSequences] = useState<CreatedSequence[]>(
     initialSequences.length
       ? initialSequences
-      : [...(isDemo ? demoSequences : [])],
+      : [],
   );
   const [metrics, setMetrics] = useState({
     people: initialPeople.length,

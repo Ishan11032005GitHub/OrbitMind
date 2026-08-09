@@ -12,8 +12,8 @@ export async function GET() {
     db.contact.findMany({ where: { userId: user.id }, include: { company: true }, orderBy: { lastInteractionAt: "desc" }, take: 500 }),
     db.sequence.findMany({ where: { userId: user.id }, include: { steps: true, enrollments: { include: { deliveries: true } } }, orderBy: { updatedAt: "desc" }, take: 100 }),
     db.mailbox.findFirst({ where: { userId: user.id, provider: "gmail" }, orderBy: { updatedAt: "desc" }, select: { provider: true, email: true, syncStatus: true, lastSyncedAt: true } }),
-    db.mailMessage.findMany({ where: { mailbox: { userId: user.id } }, select: { direction: true, category: true, priority: true, subject: true, snippet: true } }),
-    db.mailThread.count({ where: { mailbox: { userId: user.id } } }),
+    db.mailMessage.findMany({ where: { mailbox: { userId: user.id, provider: "gmail" } }, select: { direction: true, category: true, priority: true, subject: true, snippet: true } }),
+    db.mailThread.count({ where: { mailbox: { userId: user.id, provider: "gmail" } } }),
   ]);
 
   const analyzedMessages = messages.map((message) => {
